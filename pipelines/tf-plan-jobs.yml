@@ -1,0 +1,59 @@
+pool: zelectric_pool
+trigger: none
+jobs: 
+- job: TerraformInitAndPlan
+  displayName: Terraform Init and Plan
+  steps:
+  - task: TerraformTaskV4@4
+    displayName: Terraform Init
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/todoapp_infra'
+      commandOptions: '-upgrade'
+      backendServiceArm: 'azure-connection'
+      backendAzureRmResourceGroupName: 'testrg'
+      backendAzureRmStorageAccountName: 'devopsstg543'
+      backendAzureRmContainerName: 'tfstate'
+      backendAzureRmKey: 'terraform.tfstate'
+    
+  - task: TerraformTaskV4@4
+    displayName: Terraform Plan
+    inputs:
+      provider: 'azurerm'
+      command: 'plan'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/todoapp_infra'
+      environmentServiceNameAzureRM: 'azure-connection'
+
+- job: ManualValidationJob
+  dependsOn: TerraformInitAndPlan
+  displayName: Manual Validation
+  pool: server
+  steps:
+  - task: ManualValidation@1
+    inputs:
+      notifyUsers: 'abc@xyz.com'
+      instructions: 'Please validate the Plan.'
+
+- job: TerraformApply
+  dependsOn: ManualValidationJob
+  displayName: Terraform Apply
+  steps:
+  - task: TerraformTaskV4@4
+    displayName: Terraform Init
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/todoapp_infra'
+      commandOptions: '-upgrade'
+      backendServiceArm: 'azure-connection'
+      backendAzureRmResourceGroupName: 'testrg'
+      backendAzureRmStorageAccountName: 'devopsstg543'
+      backendAzureRmContainerName: 'tfstate'
+      backendAzureRmKey: 'terraform.tfstate'  
+  - task: TerraformTaskV4@4
+    inputs:
+      provider: 'azurerm'
+      command: 'apply'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/todoapp_infra'
+      environmentServiceNameAzureRM: 'azure-connection'
